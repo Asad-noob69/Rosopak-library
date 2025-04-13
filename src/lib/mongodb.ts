@@ -6,7 +6,7 @@ import { MongoClient, Db } from 'mongodb';
 const uri = process.env.MONGODB_URI;
 
 // Database Name
-const dbName = process.env.MONGODB_DB || 'rosopak-library';
+const dbName = process.env.MONGODB_DB;
 
 // Cache client promise to prevent multiple connections during development
 let cachedClient: MongoClient | null = null;
