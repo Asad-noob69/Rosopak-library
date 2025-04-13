@@ -13,7 +13,14 @@ import { ComponentService } from "@/lib/api"
 //   - /library/backend/be1 will render this component with params.id = "be1"
 //   - /library/backend/be2 will render this component with params.id = "be2"
 // =========================================================
-export default function BackendComponentDetail({ params }: { params: { id: string } }) {
+export default async function BackendComponentDetail({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
+  return <ClientBackendComponent id={resolvedParams.id} />;
+}
+
+// Client component that handles state and interactions
+function ClientBackendComponent({ id }: { id: string }) {
   // State to store the current component data
   const [component, setComponent] = useState<any>(null);
   // State to track if we're in editing mode
@@ -30,13 +37,8 @@ export default function BackendComponentDetail({ params }: { params: { id: strin
   const [password, setPassword] = useState("");
   // State for password validation
   const [isPasswordValid, setIsPasswordValid] = useState(true);
-  // Store component ID in state to avoid using params.id directly in useEffect dependency
-  const [componentId, setComponentId] = useState<string>('');
-
-  // Set component ID once on mount
-  useEffect(() => {
-    setComponentId(params.id);
-  }, [params]);
+  // Store component ID in state
+  const [componentId, setComponentId] = useState<string>(id);
 
   // Effect to load component data when the componentId changes
   useEffect(() => {

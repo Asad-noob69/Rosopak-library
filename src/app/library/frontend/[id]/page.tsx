@@ -15,7 +15,14 @@ import { ComponentService } from "@/lib/api"
 // 2. The actual value in the URL replaces [id] and is accessible via params.id
 // 3. For example, visiting /library/frontend/fe1 will make params.id = "fe1"
 // =========================================================
-export default function FrontendComponentDetail({ params }: { params: { id: string } }) {
+export default async function FrontendComponentDetail({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
+  return <ClientFrontendComponent id={resolvedParams.id} />;
+}
+
+// Client component that handles state and interactions
+function ClientFrontendComponent({ id }: { id: string }) {
   // State for the current component
   const [component, setComponent] = useState<any>(null);
   // State for tracking edit mode
@@ -32,13 +39,8 @@ export default function FrontendComponentDetail({ params }: { params: { id: stri
   const [password, setPassword] = useState("");
   // State for password validation
   const [isPasswordValid, setIsPasswordValid] = useState(true);
-  // Store component ID in state to avoid using params.id directly in useEffect dependency
-  const [componentId, setComponentId] = useState<string>('');
-
-  // Set component ID once on mount
-  useEffect(() => {
-    setComponentId(params.id);
-  }, [params]);
+  // Store component ID in state
+  const [componentId, setComponentId] = useState<string>(id);
 
   // Load component data when the component mounts or when the ID changes
   useEffect(() => {
