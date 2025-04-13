@@ -121,7 +121,7 @@ export async function DELETE(
   { params }: { params: Params } // Ensure consistent context destructuring
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     console.log(`Deleting component with ID: ${id}`);
 
     // Parse request body for password
