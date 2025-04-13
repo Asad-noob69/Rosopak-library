@@ -12,10 +12,10 @@ type Params = {
 // GET - Retrieve component by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Params } // Fixed context parameter structure
+  { params }: { params: Promise<Params> } // Updated: params is now a Promise
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     console.log(`Fetching component with ID: ${id}`);
 
     // Connect to MongoDB Atlas
@@ -40,7 +40,7 @@ export async function GET(
     // Return component
     return NextResponse.json(component);
   } catch (error: any) {
-    console.error(`Error fetching component with ID ${params?.id}:`, error);
+    console.error(`Error fetching component:`, error);
     return NextResponse.json(
       { error: 'Failed to connect to MongoDB Atlas. Please check your connection string and ensure your IP is allowed in the Atlas network settings.' },
       { status: 500 }
@@ -51,10 +51,10 @@ export async function GET(
 // PUT - Update component by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Params } // Fixed context parameter structure
+  { params }: { params: Promise<Params> } // Updated: params is now a Promise
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     console.log(`Updating component with ID: ${id}`);
 
     // Parse request body
@@ -107,7 +107,7 @@ export async function PUT(
     // Return updated component
     return NextResponse.json(updatedComponent);
   } catch (error: any) {
-    console.error(`Error updating component with ID ${params?.id}:`, error);
+    console.error(`Error updating component:`, error);
     return NextResponse.json(
       { error: 'Failed to connect to MongoDB Atlas. Please check your connection string and ensure your IP is allowed in the Atlas network settings.' },
       { status: 500 }
@@ -118,10 +118,10 @@ export async function PUT(
 // DELETE - Delete component by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Params } // Fixed context parameter structure
+  { params }: { params: Promise<Params> } // Updated: params is now a Promise
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     console.log(`Deleting component with ID: ${id}`);
 
     // Parse request body for password
@@ -159,7 +159,7 @@ export async function DELETE(
     // Return success message
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
-    console.error(`Error deleting component with ID ${params?.id}:`, error);
+    console.error(`Error deleting component:`, error);
     return NextResponse.json(
       { error: 'Failed to connect to MongoDB Atlas. Please check your connection string and ensure your IP is allowed in the Atlas network settings.' },
       { status: 500 }
