@@ -4,13 +4,15 @@ import { connectToDatabase } from '@/lib/mongodb';
 // Admin password (in production, store this in environment variables)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'rosopak123';
 
+type RouteParams = { params: { id: string } };
+
 // GET - Retrieve component by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteParams
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     console.log(`Fetching component with ID: ${id}`);
     
     // Connect to MongoDB Atlas
@@ -35,7 +37,7 @@ export async function GET(
     // Return component
     return NextResponse.json(component);
   } catch (error) {
-    console.error(`Error fetching component with ID ${params.id}:`, error);
+    console.error(`Error fetching component with ID ${context.params.id}:`, error);
     return NextResponse.json(
       { error: 'Failed to connect to MongoDB Atlas. Please check your connection string and ensure your IP is allowed in the Atlas network settings.' },
       { status: 500 }
@@ -46,10 +48,10 @@ export async function GET(
 // PUT - Update component by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteParams
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     console.log(`Updating component with ID: ${id}`);
     
     // Parse request body
@@ -102,7 +104,7 @@ export async function PUT(
     // Return updated component
     return NextResponse.json(updatedComponent);
   } catch (error) {
-    console.error(`Error updating component with ID ${params.id}:`, error);
+    console.error(`Error updating component with ID ${context.params.id}:`, error);
     return NextResponse.json(
       { error: 'Failed to connect to MongoDB Atlas. Please check your connection string and ensure your IP is allowed in the Atlas network settings.' },
       { status: 500 }
@@ -113,10 +115,10 @@ export async function PUT(
 // DELETE - Delete component by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteParams
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     console.log(`Deleting component with ID: ${id}`);
     
     // Parse request body for password
@@ -154,7 +156,7 @@ export async function DELETE(
     // Return success message
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error(`Error deleting component with ID ${params.id}:`, error);
+    console.error(`Error deleting component with ID ${context.params.id}:`, error);
     return NextResponse.json(
       { error: 'Failed to connect to MongoDB Atlas. Please check your connection string and ensure your IP is allowed in the Atlas network settings.' },
       { status: 500 }
