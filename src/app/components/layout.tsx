@@ -1,5 +1,4 @@
 import { SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebarProvider } from "@/components/app-sidebar-context"
 import { AppSidebar } from "@/components/app-sidebar"
 
 /**
@@ -18,12 +17,10 @@ export default function ComponentsLayout({
 }) {
   return (
     <SidebarProvider>
-      <AppSidebarProvider>
         <div className="flex h-screen w-full">
           <AppSidebar />
           {children}
         </div>
-      </AppSidebarProvider>
     </SidebarProvider>
   )
 }
