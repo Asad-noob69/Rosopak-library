@@ -50,7 +50,6 @@ function ClientFrontendComponent({ id }: { id: string }) {
           setComponent({
             id: '',
             name: '',
-            description: '',
             code: '',
             type: 'frontend'
           });
@@ -94,9 +93,8 @@ function ClientFrontendComponent({ id }: { id: string }) {
       // Create/update component based on whether it's new or existing
       const componentData = {
         name: component.name || 'Untitled Component',
-        description: component.description || 'No description provided',
         code: editableCode,
-        type: 'frontend'
+        type: 'frontend' as const
       };
       
       if (componentId === 'new') {
@@ -161,17 +159,10 @@ function ClientFrontendComponent({ id }: { id: string }) {
                 placeholder="Component Name"
                 className="text-3xl font-bold bg-background border-b border-border px-2 py-1"
               />
-              <textarea
-                value={component.description || ''}
-                onChange={(e) => setComponent({...component, description: e.target.value})}
-                placeholder="Component Description"
-                className="text-muted-foreground mt-1 bg-background border border-border px-2 py-1 resize-none h-20"
-              />
             </>
           ) : (
             <>
               <h1 className="text-3xl font-bold">{component.name}</h1>
-              <p className="text-muted-foreground mt-1">{component.description}</p>
             </>
           )}
           <div className="flex gap-2 justify-end">
