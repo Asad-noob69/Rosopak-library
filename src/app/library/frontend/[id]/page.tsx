@@ -1,21 +1,16 @@
 "use client"
 
-export default async function FrontendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  
-  return (
-    <ClientFrontendComponent id={resolvedParams.id} />
-  );
-}
-
-// Move the "use client" directive to a separate client component
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/vs2015.css'; // VS Code dark theme style
 
 import { SidebarInset } from "@/components/ui/sidebar"
-import { useState, useEffect } from "react"
 import { ComponentService } from "@/lib/api"
 
 // Client component that handles state and interactions
 function ClientFrontendComponent({ id }: { id: string }) {
+  const router = useRouter();
   // State for the current component
   const [component, setComponent] = useState<any>(null);
   // State for tracking edit mode
@@ -28,12 +23,21 @@ function ClientFrontendComponent({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   // State for password modal
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  // State for delete confirmation modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   // State for password input
   const [password, setPassword] = useState("");
   // State for password validation
   const [isPasswordValid, setIsPasswordValid] = useState(true);
+  // State for copy confirmation
+  const [showCopyConfirmation, setShowCopyConfirmation] = useState(false);
   // Store component ID directly as a constant instead of using state
   const componentId = id;
+
+  // Helper function to capitalize first letter
+  const capitalizeFirstLetter = (string: string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
 
   // Load component data when the component mounts or when the ID changes
   useEffect(() => {
@@ -74,9 +78,52 @@ function ClientFrontendComponent({ id }: { id: string }) {
     fetchComponent();
   }, [componentId]);
 
+  // Add a new effect to apply syntax highlighting after component data loads
+  useEffect(() => {
+    if (component && component.code) {
+      hljs.highlightAll();
+    }
+  }, [component]);
+
+  // Handle copy code to clipboard
+  const handleCopyCode = () => {
+    if (component) {
+      navigator.clipboard.writeText(component.code);
+      setShowCopyConfirmation(true);
+      setTimeout(() => {
+        setShowCopyConfirmation(false);
+      }, 3000);
+    }
+  };
+
   // Handle saving component
   const handleSaveComponent = async () => {
     setIsPasswordModalOpen(true);
+  };
+
+  // Handle delete component
+  const handleDeleteComponent = async () => {
+    try {
+      // Check if password is valid
+      const passwordCheck = await ComponentService.verifyPassword(password);
+      
+      if (!passwordCheck.valid) {
+        setIsPasswordValid(false);
+        return;
+      }
+      
+      await ComponentService.deleteComponent(componentId, password);
+      
+      // Reset state and close modal
+      setIsDeleteModalOpen(false);
+      setPassword('');
+      
+      // Redirect to home page instead of library page
+      router.push('/');
+    } catch (err) {
+      console.error('Failed to delete component:', err);
+      setError('Failed to delete component. Please try again later.');
+    }
   };
 
   // Handle publishing with password
@@ -144,6 +191,19 @@ function ClientFrontendComponent({ id }: { id: string }) {
     );
   }
 
+  // Helper function to detect language from code or use fallback
+  const detectLanguage = (code: string): string => {
+    try {
+      const detected = hljs.highlightAuto(code).language;
+      return detected || 'jsx'; // Default to jsx if detection fails
+    } catch (e) {
+      return 'jsx';
+    }
+  };
+
+  // Get capitalized component name
+  const displayName = component.name ? capitalizeFirstLetter(component.name) : '';
+
   // Render the component detail view
   return (
     <SidebarInset className="p-6 overflow-auto">
@@ -157,31 +217,16 @@ function ClientFrontendComponent({ id }: { id: string }) {
                 value={component.name || ''}
                 onChange={(e) => setComponent({...component, name: e.target.value})}
                 placeholder="Component Name"
-                className="text-3xl font-bold bg-background border-b border-border px-2 py-1"
+                className="text-3xl font-bold bg-background border-b border-border px-2 py-1 text-center"
               />
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-bold">{component.name}</h1>
+              <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {displayName}
+              </h1>
             </>
           )}
-          <div className="flex gap-2 justify-end">
-            <button 
-              onClick={() => setIsEditing(!isEditing)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
-            >
-              {isEditing ? "Cancel" : "Edit"}
-            </button>
-            
-            {isEditing && (
-              <button 
-                onClick={handleSaveComponent}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-              >
-                Publish
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Code display/edit area */}
@@ -191,9 +236,7 @@ function ClientFrontendComponent({ id }: { id: string }) {
             <span className="text-sm font-medium">Code</span>
             {!isEditing && (
               <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(component.code);
-                }}
+                onClick={handleCopyCode}
                 className="text-xs text-muted-foreground hover:text-primary"
               >
                 Copy Code
@@ -209,12 +252,79 @@ function ClientFrontendComponent({ id }: { id: string }) {
               className="w-full h-[600px] p-4 font-mono text-sm bg-background focus:outline-none"
             />
           ) : (
-            <pre className="p-4 overflow-auto font-mono text-sm whitespace-pre-wrap">
-              {component.code}
-            </pre>
+            <div className="rounded-md overflow-hidden">
+              {/* VS Code-like editor container */}
+              <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span className="text-gray-400 text-sm ml-2">
+                  {component.name}.{component.type === 'frontend' ? 'jsx' : 'js'}
+                </span>
+              </div>
+              <div className="bg-[#1E1E1E] text-white p-1">
+                {/* Line numbers and code content */}
+                <div className="flex">
+                  <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
+                    {component.code.split('\n').map((_: string, i: number) => (
+                      <div key={i} className="code-line-number">{i + 1}</div>
+                    ))}
+                  </div>
+                  <pre className="overflow-x-auto w-full">
+                    <code className={`language-${detectLanguage(component.code)}`}>
+                      {component.code}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex justify-end mt-4 gap-4">
+          {isEditing ? (
+            <button 
+              onClick={() => setIsEditing(false)}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+            >
+              Cancel
+            </button>
+          ) : (
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+            >
+              Edit
+            </button>
+          )}
+          
+          {isEditing && (
+            <button 
+              onClick={handleSaveComponent}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Publish
+            </button>
+          )}
+          
+          {componentId !== 'new' && (
+            <button 
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+            >
+              Delete
+            </button>
           )}
         </div>
       </div>
+
+      {/* Copy confirmation popup */}
+      {showCopyConfirmation && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded shadow-lg z-50">
+          Code copied to clipboard!
+        </div>
+      )}
 
       {/* Password modal for publishing */}
       {isPasswordModalOpen && (
@@ -258,6 +368,59 @@ function ClientFrontendComponent({ id }: { id: string }) {
           </div>
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Delete Component</h3>
+            <p className="mb-4">Are you sure you want to delete this component? This action cannot be undone.</p>
+            <p className="mb-4">Please enter the admin password to confirm:</p>
+            
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setIsPasswordValid(true); // Reset validation on input change
+              }}
+              className={`w-full p-2 border ${!isPasswordValid ? 'border-red-500' : 'border-border'} rounded-md mb-2`}
+              placeholder="Password"
+            />
+            
+            {!isPasswordValid && (
+              <p className="text-red-500 text-sm mb-4">Invalid password. Please try again.</p>
+            )}
+            
+            <div className="flex justify-end gap-2 mt-4">
+              <button 
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setPassword('');
+                  setIsPasswordValid(true);
+                }}
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteComponent}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SidebarInset>
+  );
+}
+
+export default async function FrontendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
+  return (
+    <ClientFrontendComponent id={resolvedParams.id} />
   );
 }
