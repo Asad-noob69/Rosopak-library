@@ -496,8 +496,10 @@ function ClientFrontendComponent({ id }: { id: string }) {
   );
 }
 
-export default function FrontendComponentDetailPage({ params }: { params: { id: string } }) {
+export default async function FrontendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
   return (
-    <ClientFrontendComponent id={params.id} />
+    <ClientFrontendComponent id={resolvedParams.id} />
   );
 }
