@@ -324,7 +324,7 @@ function ClientBackendComponent({ id }: { id: string }) {
                             <pre className="mt-4 text-left p-4 bg-gray-100 rounded text-sm overflow-x-auto max-w-full">
                               {component.code && (
                                 <code className="text-gray-800">
-                                  // Backend code summary:
+                                  {/* Backend code summary: */}
                                   {component.code.length > 500 ? 
                                     `\n${component.code.slice(0, 500)}...\n(${component.code.length} characters total)` : 
                                     `\n${component.code}`
