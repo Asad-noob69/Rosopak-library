@@ -25,7 +25,7 @@ import { ComponentService } from "@/lib/api"
 type Component = {
   id: string;
   name: string;
-  description: string;
+  description?: string; // Make description optional
   code?: string;
   type: 'frontend' | 'backend';
 };
