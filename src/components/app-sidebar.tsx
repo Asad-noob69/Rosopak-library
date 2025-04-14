@@ -15,11 +15,13 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarTrigger,
+  useSidebar
 } from "@/components/ui/sidebar"
-import { BookOpen, Code, Database, FileCode, Home, Library, Plus, Search, Server, Settings } from "lucide-react"
+import { BookOpen, Code, Database, FileCode, Home, Library, MenuIcon, Plus, Search, Server, Settings } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { ComponentService } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 
 // Define component type
 type Component = {
@@ -29,6 +31,23 @@ type Component = {
   code?: string;
   type: 'frontend' | 'backend';
 };
+
+// Floating Sidebar Trigger Button Component
+function FloatingSidebarTrigger() {
+  const { state, toggleSidebar } = useSidebar()
+  
+  return (
+    <Button
+      onClick={toggleSidebar}
+      className={`fixed left-4 top-4 z-50 size-10 rounded-full shadow-md md:${state === 'collapsed' ? 'flex' : 'hidden'}`}
+      size="icon"
+      variant="secondary"
+    >
+      <MenuIcon className="size-5" />
+      <span className="sr-only">Open Sidebar</span>
+    </Button>
+  )
+}
 
 export function AppSidebar() {
   // State for search query
@@ -86,179 +105,174 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-4 py-2">
-          <h2 className="text-lg font-semibold">Rosopak Library</h2>
-          <SidebarTrigger className="ml-auto" />
-        </div>
-        <div className="px-2 pb-2">
-          <SidebarInput 
-            placeholder="Search components..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
-            type="search"
-            autoComplete="off"
-          />
-        </div>
-      </SidebarHeader>
-      
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Home">
-                <Link href="/">
-                  <Home className="mr-2" />
-                  <span>Home</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Library">
-                <Link href="/library">
-                  <Library className="mr-2" />
-                  <span>Library</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Books">
-                <Link href="/books">
-                  <BookOpen className="mr-2" />
-                  <span>Books</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+    <>
+      <FloatingSidebarTrigger />
+      <Sidebar>
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-4 py-2">
+            <h2 className="text-lg font-semibold">Rosopak Library</h2>
+            <SidebarTrigger className="ml-auto" />
+          </div>
+          <div className="px-2 pb-2">
+            <SidebarInput 
+              placeholder="Search components..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
+              type="search"
+              autoComplete="off"
+            />
+          </div>
+        </SidebarHeader>
         
-        <SidebarGroup>
-          <SidebarGroupLabel>Component Library</SidebarGroupLabel>
-          <SidebarMenu>
-            {/* Backend Components Section */}
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Backend Components">
-                <Server className="mr-2" />
-                <span>Backend</span>
-              </SidebarMenuButton>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Home">
+                  <Link href="/">
+                    <Home className="mr-2" />
+                    <span>Home</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               
-              <SidebarMenuSub>
-                {isLoading ? (
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton>
-                      <span>Loading components...</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                ) : filteredBackendComponents.length > 0 ? (
-                  filteredBackendComponents.map(component => (
-                    <SidebarMenuSubItem key={component.id}>
-                      <SidebarMenuSubButton asChild>
-                        <Link href={`/library/backend/${component.id}`}>
-                          <Database className="mr-2 h-4 w-4" />
-                          <span>{component.name}</span>
-                        </Link>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Library">
+                  <Link href="/library">
+                    <Library className="mr-2" />
+                    <span>Library</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Books">
+                  <Link href="/books">
+                    <BookOpen className="mr-2" />
+                    <span>Books</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+          
+          <SidebarGroup>
+            <SidebarGroupLabel>Component Library</SidebarGroupLabel>
+            <SidebarMenu>
+              {/* Backend Components Section */}
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Backend Components">
+                  <Server className="mr-2" />
+                  <span>Backend</span>
+                </SidebarMenuButton>
+                
+                <SidebarMenuSub>
+                  {isLoading ? (
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton>
+                        <span>Loading components...</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
-                  ))
-                ) : (
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton>
-                      <span>No components found</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                )}
-                
-                <SidebarMenuSubItem>
-                  <SidebarMenuSubButton asChild>
-                    <Link href="/library/backend/new" className="text-muted-foreground">
-                      <Plus className="mr-2 h-4 w-4" />
-                      <span>Add New Component</span>
-                    </Link>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              </SidebarMenuSub>
-            </SidebarMenuItem>
-            
-            {/* Frontend Components Section */}
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Frontend Components">
-                <Code className="mr-2" />
-                <span>Frontend</span>
-              </SidebarMenuButton>
-              
-              <SidebarMenuSub>
-                {isLoading ? (
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton>
-                      <span>Loading components...</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                ) : filteredFrontendComponents.length > 0 ? (
-                  filteredFrontendComponents.map(component => (
-                    <SidebarMenuSubItem key={component.id}>
-                      <SidebarMenuSubButton asChild>
-                        <Link href={`/library/frontend/${component.id}`}>
-                          <FileCode className="mr-2 h-4 w-4" />
-                          <span>{component.name}</span>
-                        </Link>
+                  ) : filteredBackendComponents.length > 0 ? (
+                    filteredBackendComponents.map(component => (
+                      <SidebarMenuSubItem key={component.id}>
+                        <SidebarMenuSubButton asChild>
+                          <Link href={`/library/backend/${component.id}`}>
+                            <Database className="mr-2 h-4 w-4" />
+                            <span>{component.name}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))
+                  ) : (
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton>
+                        <span>No components found</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
-                  ))
-                ) : (
+                  )}
+                  
                   <SidebarMenuSubItem>
-                    <SidebarMenuSubButton>
-                      <span>No components found</span>
+                    <SidebarMenuSubButton asChild>
+                      <Link href="/library/backend/new" className="text-muted-foreground">
+                        <Plus className="mr-2 h-4 w-4" />
+                        <span>Add New Component</span>
+                      </Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
-                )}
+                </SidebarMenuSub>
+              </SidebarMenuItem>
+              
+              {/* Frontend Components Section */}
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Frontend Components">
+                  <Code className="mr-2" />
+                  <span>Frontend</span>
+                </SidebarMenuButton>
                 
-                <SidebarMenuSubItem>
-                  <SidebarMenuSubButton asChild>
-                    <Link href="/library/frontend/new" className="text-muted-foreground">
-                      <Plus className="mr-2 h-4 w-4" />
-                      <span>Add New Component</span>
-                    </Link>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              </SidebarMenuSub>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+                <SidebarMenuSub>
+                  {isLoading ? (
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton>
+                        <span>Loading components...</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ) : filteredFrontendComponents.length > 0 ? (
+                    filteredFrontendComponents.map(component => (
+                      <SidebarMenuSubItem key={component.id}>
+                        <SidebarMenuSubButton asChild>
+                          <Link href={`/library/frontend/${component.id}`}>
+                            <FileCode className="mr-2 h-4 w-4" />
+                            <span>{component.name}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))
+                  ) : (
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton>
+                        <span>No components found</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  )}
+                  
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild>
+                      <Link href="/library/frontend/new" className="text-muted-foreground">
+                        <Plus className="mr-2 h-4 w-4" />
+                        <span>Add New Component</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+          
+          <SidebarGroup>
+            <SidebarGroupLabel>Tools</SidebarGroupLabel>
+            <SidebarMenu>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Settings">
+                  <Link href="/settings">
+                    <Settings className="mr-2" />
+                    <span>Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
         
-        <SidebarGroup>
-          <SidebarGroupLabel>Tools</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Search">
-                <Link href="/search">
-                  <Search className="mr-2" />
-                  <span>Search</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Settings">
-                <Link href="/settings">
-                  <Settings className="mr-2" />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-      </SidebarContent>
-      
-      <SidebarFooter>
-        <div className="px-4 py-2 text-xs text-muted-foreground">
-          © 2025 Rosopak Library
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+        <SidebarFooter>
+          <div className="px-4 py-2 text-xs text-muted-foreground">
+            © 2025 Rosopak Library
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+    </>
   )
 }

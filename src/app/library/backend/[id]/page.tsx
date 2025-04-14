@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css'; // VS Code dark theme style
+import React from 'react';
 
 import { SidebarInset } from "@/components/ui/sidebar"
 import { ComponentService } from "@/lib/api"
@@ -11,11 +12,11 @@ import { ComponentService } from "@/lib/api"
 // Client component that handles state and interactions
 function ClientBackendComponent({ id }: { id: string }) {
   const router = useRouter();
-  // State to store the current component data
+  // State for the current component
   const [component, setComponent] = useState<any>(null);
-  // State to track if we're in editing mode
+  // State for tracking edit mode
   const [isEditing, setIsEditing] = useState(false);
-  // State to store the editable code
+  // State for the editable code
   const [editableCode, setEditableCode] = useState("");
   // State to track loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +32,10 @@ function ClientBackendComponent({ id }: { id: string }) {
   const [isPasswordValid, setIsPasswordValid] = useState(true);
   // State for copy confirmation
   const [showCopyConfirmation, setShowCopyConfirmation] = useState(false);
+  // State for preview mode
+  const [showPreview, setShowPreview] = useState(false);
+  // State for preview error
+  const [previewError, setPreviewError] = useState<string | null>(null);
   // Store component ID directly as a constant instead of using state
   const componentId = id;
 
@@ -39,17 +44,17 @@ function ClientBackendComponent({ id }: { id: string }) {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
-  // Effect to load component data when the component mounts
+  // Load component data when the component mounts or when the ID changes
   useEffect(() => {
     // Skip if component ID is not set yet
     if (!componentId) return;
-
+    
     async function fetchComponent() {
       setIsLoading(true);
       setError(null);
       
       try {
-        // If it's a new component, don't try to fetch
+        // If it's a new component, set up an empty component
         if (componentId === 'new') {
           setComponent({
             id: '',
@@ -80,10 +85,10 @@ function ClientBackendComponent({ id }: { id: string }) {
 
   // Add a new effect to apply syntax highlighting after component data loads
   useEffect(() => {
-    if (component && component.code) {
+    if (component && component.code && !showPreview && !isEditing) {
       hljs.highlightAll();
     }
-  }, [component]);
+  }, [component, showPreview, isEditing]);
 
   // Handle copy code to clipboard
   const handleCopyCode = () => {
@@ -94,6 +99,13 @@ function ClientBackendComponent({ id }: { id: string }) {
         setShowCopyConfirmation(false);
       }, 3000);
     }
+  };
+
+  // Toggle preview mode
+  const togglePreview = () => {
+    if (isEditing) return; // Don't toggle preview in edit mode
+    setShowPreview(!showPreview);
+    setPreviewError(null);
   };
 
   // Handle saving component
@@ -180,7 +192,7 @@ function ClientBackendComponent({ id }: { id: string }) {
     );
   }
 
-  // If component is not found, show a not found message
+  // If the component doesn't exist, show a not found message
   if (error || (!component && componentId !== 'new')) {
     return (
       <SidebarInset className="p-6">
@@ -195,20 +207,20 @@ function ClientBackendComponent({ id }: { id: string }) {
   const detectLanguage = (code: string): string => {
     try {
       const detected = hljs.highlightAuto(code).language;
-      return detected || 'javascript'; // Default to javascript if detection fails
+      return detected || 'js'; // Default to js if detection fails
     } catch (e) {
-      return 'javascript';
+      return 'js';
     }
   };
 
   // Get capitalized component name
   const displayName = component.name ? capitalizeFirstLetter(component.name) : '';
 
-  // Render the component detail page
+  // Render the component detail view
   return (
     <SidebarInset className="p-6 overflow-auto">
       <div className="max-w-4xl mx-auto">
-        {/* Component header with name and action buttons */}
+        {/* Component header */}
         <div className="flex flex-col gap-4 mb-6">
           {isEditing ? (
             <>
@@ -229,57 +241,108 @@ function ClientBackendComponent({ id }: { id: string }) {
           )}
         </div>
 
-        {/* Code display container */}
-        <div className="border rounded-lg overflow-hidden bg-muted">
-          <div className="bg-muted p-2 border-b flex justify-between">
-            <span className="text-sm font-medium">Code</span>
+        {/* Code/Preview tabs and display area */}
+        <div className="mb-6">
+          {/* Tabs for Code and Preview - Only show preview tab when not in edit mode */}
+          <div className="flex border-b">
+            <button 
+              className={`px-4 py-2 ${(!showPreview || isEditing) ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}
+              onClick={() => setShowPreview(false)}
+            >
+              Code
+            </button>
+            
             {!isEditing && (
               <button 
+                className={`px-4 py-2 ${showPreview ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}
+                onClick={() => setShowPreview(true)}
+              >
+                Preview
+              </button>
+            )}
+            
+            {!isEditing && !showPreview && (
+              <button 
                 onClick={handleCopyCode}
-                className="text-xs text-muted-foreground hover:text-primary"
+                className="ml-auto text-xs text-gray-600 hover:text-gray-900 my-auto mr-2"
               >
                 Copy Code
               </button>
             )}
           </div>
           
-          {/* Toggle between edit mode and preview mode */}
-          {isEditing ? (
-            <textarea 
-              value={editableCode} 
-              onChange={(e) => setEditableCode(e.target.value)}
-              className="w-full h-[600px] p-4 font-mono text-sm bg-background focus:outline-none"
-            />
-          ) : (
-            <div className="rounded-md overflow-hidden">
-              {/* VS Code-like editor container */}
-              <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-gray-400 text-sm ml-2">
-                  {component.name}.{component.type === 'backend' ? 'js' : 'jsx'}
-                </span>
-              </div>
-              <div className="bg-[#1E1E1E] text-white p-1">
-                {/* Line numbers and code content */}
-                <div className="flex">
-                  <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
-                    {component.code.split('\n').map((_: string, i: number) => (
-                      <div key={i} className="code-line-number">{i + 1}</div>
-                    ))}
+          {/* Content area */}
+          <div className="border border-t-0 rounded-b-md overflow-hidden">
+            {/* Edit mode */}
+            {isEditing ? (
+              <textarea 
+                value={editableCode} 
+                onChange={(e) => setEditableCode(e.target.value)}
+                className="w-full h-[600px] p-4 font-mono text-sm bg-background focus:outline-none"
+              />
+            ) : (
+              <>
+                {/* Code view */}
+                {!showPreview ? (
+                  <div className="rounded-md overflow-hidden">
+                    {/* VS Code-like editor container */}
+                    <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <span className="text-gray-400 text-sm ml-2">
+                        {component.name}.{component.type === 'frontend' ? 'jsx' : 'js'}
+                      </span>
+                    </div>
+                    <div className="bg-[#1E1E1E] text-white p-1">
+                      {/* Line numbers and code content */}
+                      <div className="flex">
+                        <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
+                            {component.code.split('\n').map((_: string, i: number) => (
+                            <div key={i} className="code-line-number">{i + 1}</div>
+                            ))}
+                        </div>
+                        <pre className="overflow-x-auto w-full">
+                          <code className={`language-${detectLanguage(component.code)}`}>
+                            {component.code}
+                          </code>
+                        </pre>
+                      </div>
+                    </div>
                   </div>
-                  <pre className="overflow-x-auto w-full">
-                    <code className={`language-${detectLanguage(component.code)}`}>
-                      {component.code}
-                    </code>
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
+                ) : (
+                  /* Preview section */
+                  <div className="bg-white min-h-[300px] border-t">
+                    {previewError ? (
+                      <div className="text-red-500 p-4">{previewError}</div>
+                    ) : (
+                      <div className="preview-display p-4">
+                        <div className="bg-gray-50 border rounded-md p-4 flex items-center justify-center min-h-[300px]">
+                          <div className="text-center">
+                            <p className="text-gray-600 mb-2">Backend code preview</p>
+                            <p className="text-gray-400 text-sm">Backend components require a server environment to execute</p>
+                            <pre className="mt-4 text-left p-4 bg-gray-100 rounded text-sm overflow-x-auto max-w-full">
+                              {component.code && (
+                                <code className="text-gray-800">
+                                  // Backend code summary:
+                                  {component.code.length > 500 ? 
+                                    `\n${component.code.slice(0, 500)}...\n(${component.code.length} characters total)` : 
+                                    `\n${component.code}`
+                                  }
+                                </code>
+                              )}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
-        
+
         {/* Action buttons */}
         <div className="flex justify-end mt-4 gap-4">
           {isEditing ? (

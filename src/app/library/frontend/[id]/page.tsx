@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css'; // VS Code dark theme style
@@ -31,6 +31,10 @@ function ClientFrontendComponent({ id }: { id: string }) {
   const [isPasswordValid, setIsPasswordValid] = useState(true);
   // State for copy confirmation
   const [showCopyConfirmation, setShowCopyConfirmation] = useState(false);
+  // State for active tab (code or preview)
+  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
+  // State for preview error
+  const [previewError, setPreviewError] = useState<string | null>(null);
   // Store component ID directly as a constant instead of using state
   const componentId = id;
 
@@ -80,10 +84,10 @@ function ClientFrontendComponent({ id }: { id: string }) {
 
   // Add a new effect to apply syntax highlighting after component data loads
   useEffect(() => {
-    if (component && component.code) {
+    if (component && component.code && activeTab === 'code' && !isEditing) {
       hljs.highlightAll();
     }
-  }, [component]);
+  }, [component, activeTab, isEditing]);
 
   // Handle copy code to clipboard
   const handleCopyCode = () => {
@@ -169,6 +173,54 @@ function ClientFrontendComponent({ id }: { id: string }) {
     }
   };
 
+  // Render preview with error handling
+  const ComponentPreview = ({ code }: { code: string }) => {
+    const [previewComponent, setPreviewComponent] = useState<React.ReactNode | null>(null);
+    
+    useEffect(() => {
+      try {
+        // Create safe wrapper for evaluation
+        const wrapCode = (code: string) => {
+          // Add React import and wrap in function component
+          return `
+            const {useState, useEffect, useRef} = React;
+            
+            function PreviewComponent() {
+              ${code}
+              
+              // Return statement if not included in the code
+              return typeof Component !== 'undefined' ? <Component /> : null;
+            }
+            
+            return <div className="preview-container"><PreviewComponent /></div>;
+          `;
+        };
+        
+        // Use Function constructor as a sandbox (with limitations)
+        const ReactComponent = new Function('React', wrapCode(code));
+        
+        // Set the component to state
+        setPreviewComponent(ReactComponent(React));
+        setPreviewError(null);
+      } catch (err) {
+        console.error('Preview error:', err);
+        setPreviewError('Failed to render preview. Check the component code for errors.');
+      }
+    }, [code]);
+    
+    return (
+      <div className="bg-white p-4 rounded-md min-h-[400px]">
+        {previewError ? (
+          <div className="text-red-500 p-4 border border-red-300 rounded bg-red-50">{previewError}</div>
+        ) : (
+          <div className="preview-render">
+            {previewComponent}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // If loading, show loading state
   if (isLoading) {
     return (
@@ -229,55 +281,88 @@ function ClientFrontendComponent({ id }: { id: string }) {
           )}
         </div>
 
-        {/* Code display/edit area */}
+        {/* Code/Preview display area */}
         <div className="border rounded-lg overflow-hidden bg-muted">
-          {/* Code header with copy button */}
-          <div className="bg-muted p-2 border-b flex justify-between">
-            <span className="text-sm font-medium">Code</span>
-            {!isEditing && (
-              <button 
-                onClick={handleCopyCode}
-                className="text-xs text-muted-foreground hover:text-primary"
+          {/* Tab navigation */}
+          {!isEditing && (
+            <div className="bg-muted border-b flex">
+              <button
+                className={`px-4 py-2 font-medium text-sm ${
+                  activeTab === 'code'
+                    ? 'bg-background border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setActiveTab('code')}
               >
-                Copy Code
+                Code
               </button>
-            )}
-          </div>
-          
-          {/* Toggle between edit textarea and code preview */}
-          {isEditing ? (
-            <textarea 
-              value={editableCode} 
-              onChange={(e) => setEditableCode(e.target.value)}
-              className="w-full h-[600px] p-4 font-mono text-sm bg-background focus:outline-none"
-            />
-          ) : (
-            <div className="rounded-md overflow-hidden">
-              {/* VS Code-like editor container */}
-              <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-gray-400 text-sm ml-2">
-                  {component.name}.{component.type === 'frontend' ? 'jsx' : 'js'}
-                </span>
-              </div>
-              <div className="bg-[#1E1E1E] text-white p-1">
-                {/* Line numbers and code content */}
-                <div className="flex">
-                  <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
-                    {component.code.split('\n').map((_: string, i: number) => (
-                      <div key={i} className="code-line-number">{i + 1}</div>
-                    ))}
-                  </div>
-                  <pre className="overflow-x-auto w-full">
-                    <code className={`language-${detectLanguage(component.code)}`}>
-                      {component.code}
-                    </code>
-                  </pre>
-                </div>
-              </div>
+              <button
+                className={`px-4 py-2 font-medium text-sm ${
+                  activeTab === 'preview'
+                    ? 'bg-background border-b-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setActiveTab('preview')}
+              >
+                Preview
+              </button>
+              
+              {activeTab === 'code' && (
+                <button 
+                  onClick={handleCopyCode}
+                  className="ml-auto text-xs text-muted-foreground hover:text-primary mr-4 self-center"
+                >
+                  Copy Code
+                </button>
+              )}
             </div>
+          )}
+          
+          {/* Toggle between edit textarea and code/preview */}
+          {isEditing ? (
+            <div>
+              <div className="bg-muted p-2 border-b flex justify-between">
+                <span className="text-sm font-medium">Code Editor</span>
+              </div>
+              <textarea 
+                value={editableCode} 
+                onChange={(e) => setEditableCode(e.target.value)}
+                className="w-full h-[600px] p-4 font-mono text-sm bg-background focus:outline-none"
+              />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'code' ? (
+                <div className="rounded-md overflow-hidden">
+                  {/* VS Code-like editor container */}
+                  <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span className="text-gray-400 text-sm ml-2">
+                      {component.name}.jsx
+                    </span>
+                  </div>
+                  <div className="bg-[#1E1E1E] text-white p-1">
+                    {/* Line numbers and code content */}
+                    <div className="flex">
+                      <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
+                        {component.code.split('\n').map((_: string, i: number) => (
+                          <div key={i} className="code-line-number">{i + 1}</div>
+                        ))}
+                      </div>
+                      <pre className="overflow-x-auto w-full">
+                        <code className={`language-${detectLanguage(component.code)}`}>
+                          {component.code}
+                        </code>
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ComponentPreview code={component.code} />
+              )}
+            </>
           )}
         </div>
 
