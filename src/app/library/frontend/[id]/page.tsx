@@ -1,25 +1,18 @@
 "use client"
 
+export default async function FrontendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
+  return (
+    <ClientFrontendComponent id={resolvedParams.id} />
+  );
+}
+
+// Move the "use client" directive to a separate client component
+
 import { SidebarInset } from "@/components/ui/sidebar"
 import { useState, useEffect } from "react"
 import { ComponentService } from "@/lib/api"
-
-// =========================================================
-// FRONTEND COMPONENT DETAIL PAGE
-// =========================================================
-// This component renders the detail page for a frontend component
-// The dynamic route parameter [id] is passed to this component via params
-//
-// How dynamic routes work in Next.js App Router:
-// 1. The folder named [id] creates a dynamic route segment
-// 2. The actual value in the URL replaces [id] and is accessible via params.id
-// 3. For example, visiting /library/frontend/fe1 will make params.id = "fe1"
-// =========================================================
-export default async function FrontendComponentDetail({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  
-  return <ClientFrontendComponent id={resolvedParams.id} />;
-}
 
 // Client component that handles state and interactions
 function ClientFrontendComponent({ id }: { id: string }) {
@@ -39,8 +32,8 @@ function ClientFrontendComponent({ id }: { id: string }) {
   const [password, setPassword] = useState("");
   // State for password validation
   const [isPasswordValid, setIsPasswordValid] = useState(true);
-  // Store component ID in state
-  const [componentId, setComponentId] = useState<string>(id);
+  // Store component ID directly as a constant instead of using state
+  const componentId = id;
 
   // Load component data when the component mounts or when the ID changes
   useEffect(() => {

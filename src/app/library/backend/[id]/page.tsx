@@ -1,23 +1,18 @@
 "use client"
 
+export default async function BackendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
+  return (
+    <ClientBackendComponent id={resolvedParams.id} />
+  );
+}
+
+// Move the "use client" directive to a separate client component
+
 import { SidebarInset } from "@/components/ui/sidebar"
 import { useState, useEffect } from "react"
 import { ComponentService } from "@/lib/api"
-
-// =========================================================
-// DYNAMIC ROUTE COMPONENT
-// =========================================================
-// This is a dynamic route component that receives the dynamic [id] parameter
-// The [id] folder in the file structure creates a dynamic route segment
-// For example:
-//   - /library/backend/be1 will render this component with params.id = "be1"
-//   - /library/backend/be2 will render this component with params.id = "be2"
-// =========================================================
-export default async function BackendComponentDetail({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  
-  return <ClientBackendComponent id={resolvedParams.id} />;
-}
 
 // Client component that handles state and interactions
 function ClientBackendComponent({ id }: { id: string }) {
@@ -37,10 +32,10 @@ function ClientBackendComponent({ id }: { id: string }) {
   const [password, setPassword] = useState("");
   // State for password validation
   const [isPasswordValid, setIsPasswordValid] = useState(true);
-  // Store component ID in state
-  const [componentId, setComponentId] = useState<string>(id);
+  // Store component ID directly as a constant instead of using state
+  const componentId = id;
 
-  // Effect to load component data when the componentId changes
+  // Effect to load component data when the component mounts
   useEffect(() => {
     // Skip if component ID is not set yet
     if (!componentId) return;
