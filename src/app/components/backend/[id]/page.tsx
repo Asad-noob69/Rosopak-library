@@ -149,7 +149,7 @@ export default function BackendComponentDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <h1 className="text-3xl font-bold mb-6 text-center text-[#00ff9d] font-[tusker]">
         {displayName}
       </h1>
       

@@ -106,11 +106,10 @@ export function AppSidebar() {
 
   return (
     <>
-      <FloatingSidebarTrigger />
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 px-4 py-2">
-            <h2 className="text-lg font-semibold">Rosopak Library</h2>
+            <h2 className="text-lg font-semibold font-[tusker]">Rosopak Library</h2>
             <SidebarTrigger className="ml-auto" />
           </div>
           <div className="px-2 pb-2">
