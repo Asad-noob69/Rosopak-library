@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css'; // VS Code dark theme style
 import React from 'react';
+import Link from 'next/link';
+import { ExternalLink } from 'react-feather';
 
 import { SidebarInset } from "@/components/ui/sidebar"
 import { ComponentService } from "@/lib/api"
@@ -237,6 +239,19 @@ function ClientBackendComponent({ id }: { id: string }) {
               <h1 className="text-3xl font-bold text-center text-black font-[tusker]">
                 {displayName}
               </h1>
+              {/* Add preview button here for non-editing mode */}
+              {componentId !== 'new' && (
+                <div className="flex justify-center">
+                  <Link 
+                    href={`/preview/${componentId}`}
+                    className="inline-flex items-center gap-2 text-primary hover:underline"
+                    target="_blank"
+                  >
+                    <span>Open in Preview Mode</span>
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -479,8 +494,9 @@ function ClientBackendComponent({ id }: { id: string }) {
   );
 }
 
-export default async function BackendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
+export default function BackendComponentDetailPage({ params }: { params: { id: string } }) {
+  // Unwrap the params object using React.use()
+  const resolvedParams = React.use(params as any);
   
   return (
     <ClientBackendComponent id={resolvedParams.id} />

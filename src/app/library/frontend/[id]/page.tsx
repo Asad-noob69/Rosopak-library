@@ -2,8 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link'
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css'; // VS Code dark theme style
+import { ExternalLink } from 'lucide-react'; // Added the missing ExternalLink import
+import * as Babel from '@babel/standalone';
 
 import { SidebarInset } from "@/components/ui/sidebar"
 import { ComponentService } from "@/lib/api"
@@ -179,32 +182,107 @@ function ClientFrontendComponent({ id }: { id: string }) {
     
     useEffect(() => {
       try {
-        // Create safe wrapper for evaluation
-        const wrapCode = (code: string) => {
-          // Add React import and wrap in function component
-          return `
-            const {useState, useEffect, useRef} = React;
-            
-            function PreviewComponent() {
-              ${code}
-              
-              // Return statement if not included in the code
-              return typeof Component !== 'undefined' ? <Component /> : null;
+        // Pre-process the code to handle imports and exports
+        let processedCode = code;
+        
+        // Replace import statements with mockable variables
+        processedCode = processedCode.replace(
+          /import\s+(\w+|\{\s*\w+(\s+as\s+\w+)?\s*(,\s*\w+(\s+as\s+\w+)?\s*)*\})\s+from\s+["']([^"']+)["'];?/g, 
+          (match, importName, _, __, ___, importPath) => {
+            if (importPath === 'next/image') {
+              return '// Image import handled';
             }
+            return `// Import replaced: ${importPath}`;
+          }
+        );
+        
+        // Handle export statements by removing the 'export' keyword
+        processedCode = processedCode.replace(
+          /export\s+(default\s+)?(function|class|const|let|var)\s+(\w+)/g,
+          (match, defaultExport, declarationType, name) => {
+            return `${declarationType} ${name}`;
+          }
+        );
+        
+        // Handle default export assignment (export default Component)
+        processedCode = processedCode.replace(
+          /export\s+default\s+(\w+)\s*;?/g,
+          (match, name) => {
+            return `// Default export: ${name}`;
+          }
+        );
+        
+        // Transform JSX to regular JavaScript using Babel
+        const transformedCode = Babel.transform(processedCode, {
+          presets: ['react'],
+          filename: 'component.jsx',
+        }).code;
+        
+        if (!transformedCode) {
+          throw new Error('Failed to transform JSX code');
+        }
+        
+        // Create safe wrapper for evaluation
+        const wrapCode = (transformedCode: string) => {
+          return `
+            const {useState, useEffect, useRef, createElement, Fragment} = React;
             
-            return <div className="preview-container"><PreviewComponent /></div>;
+            // Provide Next.js components
+            const Image = NextImage;
+            
+            try {
+              // Execute the transformed code
+              ${transformedCode}
+              
+              // Check for exported components
+              function PreviewComponent() {
+                // Try to find any component in order of priority
+                if (typeof Component !== 'undefined') {
+                  return createElement(Component, {});
+                } 
+                else if (typeof Footer !== 'undefined') {
+                  return createElement(Footer, {});
+                }
+                else if (typeof Header !== 'undefined') {
+                  return createElement(Header, {});
+                }
+                else if (typeof Layout !== 'undefined') {
+                  return createElement(Layout, {});
+                }
+                else if (typeof Card !== 'undefined') {
+                  return createElement(Card, {});
+                }
+                else if (typeof Button !== 'undefined') {
+                  return createElement(Button, {});
+                }
+                else {
+                  // Try to find any function that starts with uppercase (React component convention)
+                  for (const key in this) {
+                    if (typeof this[key] === 'function' && /^[A-Z]/.test(key)) {
+                      return createElement(this[key], {});
+                    }
+                  }
+                  return createElement('div', {}, 'No component found to render');
+                }
+              }
+              
+              return createElement('div', { className: "preview-container" }, createElement(PreviewComponent, {}));
+            } catch (err) {
+              throw new Error('Error in component code: ' + err.message);
+            }
           `;
         };
         
         // Use Function constructor as a sandbox (with limitations)
-        const ReactComponent = new Function('React', wrapCode(code));
+        const ReactComponent = new Function('React', 'NextImage', wrapCode(transformedCode));
         
-        // Set the component to state
-        setPreviewComponent(ReactComponent(React));
+        // Set the component to state with provided Next.js components
+        setPreviewComponent(ReactComponent(React, Image));
         setPreviewError(null);
       } catch (err) {
         console.error('Preview error:', err);
-        setPreviewError('Failed to render preview. Check the component code for errors.');
+        // More detailed error message
+        setPreviewError(`Failed to render preview: ${err.message || 'Unknown error'}`);
       }
     }, [code]);
     
@@ -277,6 +355,19 @@ function ClientFrontendComponent({ id }: { id: string }) {
               <h1 className="text-3xl font-bold text-center text-black font-[tusker]">
                 {displayName}
               </h1>
+              {/* Add preview button here for non-editing mode */}
+              {componentId !== 'new' && (
+                <div className="flex justify-center">
+                  <Link 
+                    href={`/preview/${componentId}`}
+                    className="inline-flex items-center gap-2 text-primary hover:underline"
+                    target="_blank"
+                  >
+                    <span>Open in Preview Mode</span>
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -502,10 +593,8 @@ function ClientFrontendComponent({ id }: { id: string }) {
   );
 }
 
-export default async function FrontendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  
+export default function FrontendComponentDetailPage({ params }: { params: { id: string } }) {
   return (
-    <ClientFrontendComponent id={resolvedParams.id} />
+    <ClientFrontendComponent id={params.id} />
   );
 }
