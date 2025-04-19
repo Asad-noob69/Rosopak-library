@@ -1,23 +1,25 @@
 "use client"
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css'; // VS Code dark theme style
+import React from 'react';
+import Link from 'next/link';
+import { ExternalLink } from 'lucide-react';
 
+import { SidebarInset } from "@/components/ui/sidebar"
 import { ComponentService } from "@/lib/api"
 
 // Client component that handles state and interactions
-function ClientFrontendComponent({ id }: { id: string }) {
+export default function ClientBackendComponent({ id, initialComponent }: { id: string, initialComponent: any }) {
   const router = useRouter();
   // State for the current component
-  const [component, setComponent] = useState<any>(null);
+  const [component, setComponent] = useState<any>(initialComponent);
   // State for tracking edit mode
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialComponent === null);
   // State for the editable code
-  const [editableCode, setEditableCode] = useState("");
-  // State to track loading state
-  const [isLoading, setIsLoading] = useState(true);
+  const [editableCode, setEditableCode] = useState(initialComponent ? initialComponent.code : "");
   // State to track error state
   const [error, setError] = useState<string | null>(null);
   // State for password modal
@@ -30,8 +32,8 @@ function ClientFrontendComponent({ id }: { id: string }) {
   const [isPasswordValid, setIsPasswordValid] = useState(true);
   // State for copy confirmation
   const [showCopyConfirmation, setShowCopyConfirmation] = useState(false);
-  // State for active tab (code or preview)
-  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
+  // State for preview mode
+  const [showPreview, setShowPreview] = useState(false);
   // State for preview error
   const [previewError, setPreviewError] = useState<string | null>(null);
   // Store component ID directly as a constant instead of using state
@@ -42,51 +44,26 @@ function ClientFrontendComponent({ id }: { id: string }) {
     return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
-  // Load component data when the component mounts or when the ID changes
+  // Initialize new component if needed
   useEffect(() => {
-    // Skip if component ID is not set yet
-    if (!componentId) return;
-    
-    async function fetchComponent() {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // If it's a new component, set up an empty component
-        if (componentId === 'new') {
-          setComponent({
-            id: '',
-            name: '',
-            code: '',
-            type: 'frontend'
-          });
-          setEditableCode('');
-          setIsEditing(true);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Fetch component from API
-        const componentData = await ComponentService.getComponentById(componentId);
-        setComponent(componentData);
-        setEditableCode(componentData.code);
-      } catch (err) {
-        console.error('Failed to fetch component:', err);
-        setError('Failed to load component. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
+    if (componentId === 'new' && !initialComponent) {
+      setComponent({
+        id: '',
+        name: '',
+        code: '',
+        type: 'backend'
+      });
+      setEditableCode('');
+      setIsEditing(true);
     }
-    
-    fetchComponent();
-  }, [componentId]);
+  }, [componentId, initialComponent]);
 
   // Add a new effect to apply syntax highlighting after component data loads
   useEffect(() => {
-    if (component && component.code && activeTab === 'code' && !isEditing) {
+    if (component && component.code && !showPreview && !isEditing) {
       hljs.highlightAll();
     }
-  }, [component, activeTab, isEditing]);
+  }, [component, showPreview, isEditing]);
 
   // Handle copy code to clipboard
   const handleCopyCode = () => {
@@ -97,6 +74,13 @@ function ClientFrontendComponent({ id }: { id: string }) {
         setShowCopyConfirmation(false);
       }, 3000);
     }
+  };
+
+  // Toggle preview mode
+  const togglePreview = () => {
+    if (isEditing) return; // Don't toggle preview in edit mode
+    setShowPreview(!showPreview);
+    setPreviewError(null);
   };
 
   // Handle saving component
@@ -121,8 +105,8 @@ function ClientFrontendComponent({ id }: { id: string }) {
       setIsDeleteModalOpen(false);
       setPassword('');
       
-      // Redirect to components page
-      router.push('/components');
+      // Redirect to home page instead of library page
+      router.push('/');
     } catch (err) {
       console.error('Failed to delete component:', err);
       setError('Failed to delete component. Please try again later.');
@@ -144,7 +128,7 @@ function ClientFrontendComponent({ id }: { id: string }) {
       const componentData = {
         name: component.name || 'Untitled Component',
         code: editableCode,
-        type: 'frontend' as const
+        type: 'backend' as const
       };
       
       if (componentId === 'new') {
@@ -157,7 +141,7 @@ function ClientFrontendComponent({ id }: { id: string }) {
         setIsEditing(false);
         
         // Redirect to the newly created component
-        router.push(`/components/frontend/${newComponent.id}`);
+        window.location.href = `/library/backend/${newComponent.id}`;
       } else {
         await ComponentService.updateComponent(componentId, componentData, password);
         
@@ -165,13 +149,6 @@ function ClientFrontendComponent({ id }: { id: string }) {
         setIsPasswordModalOpen(false);
         setPassword('');
         setIsEditing(false);
-        
-        // Update local component data
-        setComponent({
-          ...component,
-          name: componentData.name,
-          code: componentData.code
-        });
       }
     } catch (err) {
       console.error('Failed to publish component:', err);
@@ -179,80 +156,40 @@ function ClientFrontendComponent({ id }: { id: string }) {
     }
   };
 
-  // Render preview with error handling
-  const ComponentPreview = ({ code }: { code: string }) => {
-    const [previewComponent, setPreviewComponent] = useState<React.ReactNode | null>(null);
-    
-    useEffect(() => {
-      try {
-        // Create safe wrapper for evaluation
-        const wrapCode = (code: string) => {
-          // Add React import and wrap in function component
-          return `
-            const {useState, useEffect, useRef} = React;
-            
-            function PreviewComponent() {
-              ${code}
-              
-              // Return statement if not included in the code
-              return typeof Component !== 'undefined' ? <Component /> : null;
-            }
-            
-            return <div className="preview-container"><PreviewComponent /></div>;
-          `;
-        };
-        
-        // Use Function constructor as a sandbox (with limitations)
-        const ReactComponent = new Function('React', wrapCode(code));
-        
-        // Set the component to state
-        setPreviewComponent(ReactComponent(React));
-        setPreviewError(null);
-      } catch (err) {
-        console.error('Preview error:', err);
-        setPreviewError('Failed to render preview. Check the component code for errors.');
-      }
-    }, [code]);
-    
-    return (
-      <div className="bg-white p-4 rounded-md min-h-[400px]">
-        {previewError ? (
-          <div className="text-red-500 p-4 border border-red-300 rounded bg-red-50">{previewError}</div>
-        ) : (
-          <div className="preview-render">
-            {previewComponent}
-          </div>
-        )}
-      </div>
-    );
+  // Helper function to handle entering edit mode
+  const handleEditComponent = () => {
+    // Make sure we load the current component code into the editable area
+    setEditableCode(component.code);
+    setIsEditing(true);
   };
-
-  // If loading, show loading state
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center">Loading component...</div>;
-  }
-
-  // If the component doesn't exist, show a not found message
-  if (error || (!component && componentId !== 'new')) {
-    return <div className="p-6 flex items-center justify-center">{error || 'Component not found'}</div>;
-  }
 
   // Helper function to detect language from code or use fallback
   const detectLanguage = (code: string): string => {
     try {
       const detected = hljs.highlightAuto(code).language;
-      return detected || 'jsx'; // Default to jsx if detection fails
+      return detected || 'js'; // Default to js if detection fails
     } catch (e) {
-      return 'jsx';
+      return 'js';
     }
   };
 
+  // If error or missing component
+  if (error) {
+    return (
+      <SidebarInset className="p-6">
+        <div className="flex h-full items-center justify-center">
+          <p>{error}</p>
+        </div>
+      </SidebarInset>
+    );
+  }
+
   // Get capitalized component name
-  const displayName = component.name ? capitalizeFirstLetter(component.name) : '';
+  const displayName = component?.name ? capitalizeFirstLetter(component.name) : '';
 
   // Render the component detail view
   return (
-    <div className="p-6 overflow-auto">
+    <SidebarInset className="p-6 overflow-auto">
       <div className="max-w-4xl mx-auto">
         {/* Component header */}
         <div className="flex flex-col gap-4 mb-6">
@@ -260,7 +197,7 @@ function ClientFrontendComponent({ id }: { id: string }) {
             <>
               <input
                 type="text"
-                value={component.name || ''}
+                value={component?.name || ''}
                 onChange={(e) => setComponent({...component, name: e.target.value})}
                 placeholder="Component Name"
                 className="text-3xl font-bold bg-background border-b border-border px-2 py-1 text-center"
@@ -268,96 +205,126 @@ function ClientFrontendComponent({ id }: { id: string }) {
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-bold text-center text-[#00ff9d] font-tusker">
+              <h1 className="text-3xl font-bold text-center text-black font-[tusker]">
                 {displayName}
               </h1>
+              {/* Add preview button here for non-editing mode */}
+              {componentId !== 'new' && (
+                <div className="flex justify-center">
+                  <Link 
+                    href={`/preview/${componentId}`}
+                    className="inline-flex items-center gap-2 text-primary hover:underline"
+                    target="_blank"
+                  >
+                    <span>Open in Preview Mode</span>
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>
 
-        {/* Code/Preview display area */}
-        <div className="border rounded-lg overflow-hidden bg-muted">
-          {/* Tab navigation */}
-          {!isEditing && (
-            <div className="bg-muted border-b flex">
-              <button
-                className={`px-4 py-2 font-medium text-sm ${
-                  activeTab === 'code'
-                    ? 'bg-background border-b-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setActiveTab('code')}
-              >
-                Code
-              </button>
-              <button
-                className={`px-4 py-2 font-medium text-sm ${
-                  activeTab === 'preview'
-                    ? 'bg-background border-b-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setActiveTab('preview')}
+        {/* Code/Preview tabs and display area */}
+        <div className="mb-6">
+          {/* Tabs for Code and Preview - Only show preview tab when not in edit mode */}
+          <div className="flex border-b">
+            <button 
+              className={`px-4 py-2 ${(!showPreview || isEditing) ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}
+              onClick={() => setShowPreview(false)}
+            >
+              Code
+            </button>
+            
+            {!isEditing && (
+              <button 
+                className={`px-4 py-2 ${showPreview ? 'text-blue-600 border-b-2 border-blue-600 font-medium' : 'text-gray-500'}`}
+                onClick={() => setShowPreview(true)}
               >
                 Preview
               </button>
-              
-              {activeTab === 'code' && (
-                <button 
-                  onClick={handleCopyCode}
-                  className="ml-auto text-xs text-muted-foreground hover:text-primary mr-4 self-center"
-                >
-                  Copy Code
-                </button>
-              )}
-            </div>
-          )}
+            )}
+            
+            {!isEditing && !showPreview && (
+              <button 
+                onClick={handleCopyCode}
+                className="ml-auto text-xs text-gray-600 hover:text-gray-900 my-auto mr-2"
+              >
+                Copy Code
+              </button>
+            )}
+          </div>
           
-          {/* Toggle between edit textarea and code/preview */}
-          {isEditing ? (
-            <div>
-              <div className="bg-muted p-2 border-b flex justify-between">
-                <span className="text-sm font-medium">Code Editor</span>
-              </div>
+          {/* Content area */}
+          <div className="border border-t-0 rounded-b-md overflow-hidden">
+            {/* Edit mode */}
+            {isEditing ? (
               <textarea 
                 value={editableCode} 
                 onChange={(e) => setEditableCode(e.target.value)}
                 className="w-full h-[600px] p-4 font-mono text-sm bg-background focus:outline-none"
               />
-            </div>
-          ) : (
-            <>
-              {activeTab === 'code' ? (
-                <div className="rounded-md overflow-hidden">
-                  {/* VS Code-like editor container */}
-                  <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span className="text-gray-400 text-sm ml-2">
-                      {component.name}.jsx
-                    </span>
-                  </div>
-                  <div className="bg-[#1E1E1E] text-white p-1">
-                    {/* Line numbers and code content */}
-                    <div className="flex">
-                      <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
-                        {component.code.split('\n').map((_: string, i: number) => (
-                          <div key={i} className="code-line-number">{i + 1}</div>
-                        ))}
+            ) : (
+              <>
+                {/* Code view */}
+                {!showPreview ? (
+                  <div className="rounded-md overflow-hidden">
+                    {/* VS Code-like editor container */}
+                    <div className="bg-[#1E1E1E] rounded-t-md py-2 px-4 flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <span className="text-gray-400 text-sm ml-2">
+                        {component?.name}.{component?.type === 'frontend' ? 'jsx' : 'js'}
+                      </span>
+                    </div>
+                    <div className="bg-[#1E1E1E] text-white p-1">
+                      {/* Line numbers and code content */}
+                      <div className="flex">
+                        <div className="pr-4 select-none text-gray-500 text-right" style={{ minWidth: '2rem' }}>
+                          {component?.code.split('\n').map((_: string, i: number) => (
+                            <div key={i} className="code-line-number">{i + 1}</div>
+                          ))}
+                        </div>
+                        <pre className="overflow-x-auto w-full">
+                          <code className={`language-${detectLanguage(component?.code)}`}>
+                            {component?.code}
+                          </code>
+                        </pre>
                       </div>
-                      <pre className="overflow-x-auto w-full">
-                        <code className={`language-${detectLanguage(component.code)}`}>
-                          {component.code}
-                        </code>
-                      </pre>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <ComponentPreview code={component.code} />
-              )}
-            </>
-          )}
+                ) : (
+                  /* Preview section */
+                  <div className="bg-white min-h-[300px] border-t">
+                    {previewError ? (
+                      <div className="text-red-500 p-4">{previewError}</div>
+                    ) : (
+                      <div className="preview-display p-4">
+                        <div className="bg-gray-50 border rounded-md p-4 flex items-center justify-center min-h-[300px]">
+                          <div className="text-center">
+                            <p className="text-gray-600 mb-2">Backend code preview</p>
+                            <p className="text-gray-400 text-sm">Backend components require a server environment to execute</p>
+                            <pre className="mt-4 text-left p-4 bg-gray-100 rounded text-sm overflow-x-auto max-w-full">
+                              {component?.code && (
+                                <code className="text-gray-800">
+                                  {/* Backend code summary: */}
+                                  {component.code.length > 500 ? 
+                                    `\n${component.code.slice(0, 500)}...\n(${component.code.length} characters total)` : 
+                                    `\n${component.code}`
+                                  }
+                                </code>
+                              )}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Action buttons */}
@@ -371,7 +338,7 @@ function ClientFrontendComponent({ id }: { id: string }) {
             </button>
           ) : (
             <button 
-              onClick={() => setIsEditing(true)}
+              onClick={handleEditComponent}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
             >
               Edit
@@ -492,14 +459,6 @@ function ClientFrontendComponent({ id }: { id: string }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-export default async function FrontendComponentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  
-  return (
-    <ClientFrontendComponent id={resolvedParams.id} />
+    </SidebarInset>
   );
 }

@@ -161,11 +161,15 @@ export function AppSidebar() {
             <SidebarGroupLabel>Component Library</SidebarGroupLabel>
             <SidebarMenu>
               {/* Backend Components Section */}
+
               <SidebarMenuItem>
+              <Link href="/library/backend">
                 <SidebarMenuButton tooltip="Backend Components">
                   <Server className="mr-2" />
-                  <span>Backend</span>
+                    <span>Backend</span>
                 </SidebarMenuButton>
+                </Link>
+
                 
                 <SidebarMenuSub>
                   {isLoading ? (
@@ -206,11 +210,13 @@ export function AppSidebar() {
               
               {/* Frontend Components Section */}
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Frontend Components">
-                  <Code className="mr-2" />
-                  <span>Frontend</span>
-                </SidebarMenuButton>
-                
+                <Link href="/library/frontend">
+                  <SidebarMenuButton tooltip="Frontend Components">
+                    <Code className="mr-2" />
+                    <span>Frontend</span>
+                  </SidebarMenuButton>
+                </Link>
+                  
                 <SidebarMenuSub>
                   {isLoading ? (
                     <SidebarMenuSubItem>

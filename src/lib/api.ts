@@ -3,7 +3,8 @@
 
 /**
  * Base URL for the API routes
- * Using relative URL to access Next.js API routes
+ * Using relative URL to access Next.js API routes from client
+ * We'll use absolute URL when called from the server
  */
 export const API_BASE_URL = '/api';
 
@@ -18,13 +19,28 @@ export type Component = {
 };
 
 /**
- * Generic function to make API requests
+ * Get base URL for API requests that works in both client and server environments
+ */
+function getBaseUrl() {
+  // Check if we're running on the server
+  if (typeof window === 'undefined') {
+    // Server-side request - use absolute URL with NEXT_PUBLIC_BASE_URL environment variable
+    // or default to localhost if not set
+    return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  }
+  // Client-side request - use relative URL
+  return '';
+}
+
+/**
+ * Generic function to make API requests from both client and server components
  */
 export async function fetchFromApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}${API_BASE_URL}${endpoint}`;
   
   const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -36,6 +52,8 @@ export async function fetchFromApi<T>(
       ...defaultHeaders,
       ...options.headers,
     },
+    // Add this for server-side requests to ensure they're properly cached/revalidated
+    ...(typeof window === 'undefined' && { cache: options.cache || 'no-store' }),
   });
 
   if (!response.ok) {
