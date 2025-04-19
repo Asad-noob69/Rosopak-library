@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // Component Preview Page
-export default async function PreviewPage({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default async function PreviewPage({params}: {params: Promise<{ id: string }>}) {
+  const { id } = await params;
   
   // Fetch component data
   let component;
