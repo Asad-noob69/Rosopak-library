@@ -7,7 +7,11 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // Server-side component that fetches data and passes to client component
-export default async function BackendComponentDetailPage({ params }: { params: { id: string } }) {
+export default async function BackendComponentDetailPage({ 
+  params 
+}: { 
+  params: { id: string } 
+}) {
   const { id } = params;
 
   // Handle "new" component case
